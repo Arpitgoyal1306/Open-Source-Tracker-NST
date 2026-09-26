@@ -1,5 +1,3 @@
-import { readFileSync } from "fs";
-import { join } from "path";
 import { getStudentsKV, removeStudent } from "./kv-students";
 import {
   getExceptionRepoSetForUser,
@@ -48,7 +46,7 @@ export function getGitHubToken(): string | undefined {
       cachedToken = token;
       return token;
     }
-  } catch (e) {
+  } catch {
     // gh CLI not installed or not logged in
   }
   return undefined;
@@ -1121,11 +1119,13 @@ export async function getAllStudentSummaries(
     if (success) {
       studentPRMap.set(
         lowerName,
-        (results[0] as PromiseFulfilledResult<any>).value.items,
+        (results[0] as PromiseFulfilledResult<{ items: StudentPR[] }>).value
+          .items,
       );
       studentIssueMap.set(
         lowerName,
-        (results[1] as PromiseFulfilledResult<any>).value.items,
+        (results[1] as PromiseFulfilledResult<{ items: StudentIssue[] }>).value
+          .items,
       );
     } else {
       if (results[0].status === "rejected")
@@ -1602,8 +1602,14 @@ export async function updateStaleProfiles(
             delete failState[lower];
             failStateChanged = true;
           }
-        } catch (err: any) {
-          if (err instanceof NotFoundError || err.name === "NotFoundError") {
+        } catch (err: unknown) {
+          if (
+            err instanceof NotFoundError ||
+            (typeof err === "object" &&
+              err !== null &&
+              "name" in err &&
+              (err as { name: unknown }).name === "NotFoundError")
+          ) {
             console.error(
               `Removing invalid GitHub ID from tracking: ${username}`,
             );
