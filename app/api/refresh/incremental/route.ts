@@ -35,6 +35,18 @@ async function performIncrementalRefresh() {
   const ownRepoExceptionMap = buildOwnRepoExceptionMap(await getOwnRepoExceptions());
   const periods = ['all', 'week', 'month'];
 
+  // Every period is derived from the SAME profile cache -- getSummaryFromCache
+  // just filters that student's PRs by the period's date cutoff. Reading the
+  // profile inside the period loop therefore fetched identical bytes from KV
+  // three times per student per tick, which at the default batch size was
+  // ~288,000 redundant Upstash commands a month: about 61% of the free tier
+  // spent re-downloading data already in memory. Read each profile once.
+  const profiles = new Map<string, NonNullable<Awaited<ReturnType<typeof readProfileCache>>>>();
+  for (const username of updated) {
+    const cached = await readProfileCache(username);
+    if (cached) profiles.set(username.toLowerCase(), cached);
+  }
+
   for (const period of periods) {
     const existingCache = await readSummaryCache(period);
     if (!existingCache) continue;
@@ -43,7 +55,7 @@ async function performIncrementalRefresh() {
     let changed = false;
 
     for (const username of updated) {
-      const updatedCache = await readProfileCache(username);
+      const updatedCache = profiles.get(username.toLowerCase());
       if (!updatedCache) continue;
 
       const student = students.find(s => s.github.toLowerCase() === username.toLowerCase());
