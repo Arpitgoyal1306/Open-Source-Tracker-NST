@@ -48,7 +48,9 @@ async function performIncrementalRefresh() {
   }
 
   for (const period of periods) {
-    const existingCache = await readSummaryCache(period);
+    // bypassMemory: the loop below mutates existingCache.summaries in place
+    // before writing it back, so it must not share the cached instance.
+    const existingCache = await readSummaryCache(period, { bypassMemory: true });
     if (!existingCache) continue;
 
     const dateQuery = buildDateQuery(period);

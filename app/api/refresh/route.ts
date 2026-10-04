@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const cache = await readSummaryCache(period);
+  const cache = await readSummaryCache(period, { bypassMemory: true });
   if (!cache) {
     return Response.json({ cachedAt: null, fresh: false, count: 0 });
   }
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
           const ownRepoExceptions = await getExceptionRepoSetForUser(username);
           const periods = ['all', 'week', 'month'];
           for (const p of periods) {
-            const existingCache = await readSummaryCache(p);
+            const existingCache = await readSummaryCache(p, { bypassMemory: true });
             if (existingCache) {
               const dateQuery = buildDateQuery(p);
               const freshSummary = getSummaryFromCache(updatedCache, dateQuery, flaggedPRIds, repoCache, ownRepoExceptions);
@@ -198,7 +198,7 @@ export async function POST(request: Request) {
   }
 
   // 2. Refresh summaries list for a specific period
-  const cache = await readSummaryCache(period);
+  const cache = await readSummaryCache(period, { bypassMemory: true });
   const summaryLoggedIn = await isLoggedIn();
 
   // Rate limit: return early if cache is still fresh (skip for logged-in users)
