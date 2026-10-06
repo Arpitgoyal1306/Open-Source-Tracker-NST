@@ -66,7 +66,11 @@ export function indexStudentContributions(
   profile: Pick<ProfileCacheEntry, 'prs'>,
   filters: IndexFilters = {},
 ): void {
-  const perOwner = new Map<string, number>();
+  // Keyed lowercased, like the index itself: GitHub preserves owner casing in
+  // the API URL but treats it case-insensitively, so the same organisation can
+  // arrive spelled differently across PRs. Keying on raw casing silently split
+  // one org into two and, on re-index, dropped the student from it entirely.
+  const perOwner = new Map<string, { login: string; count: number }>();
 
   for (const pr of profile.prs ?? []) {
     if (!pr.pull_request?.merged_at) continue;
@@ -82,11 +86,13 @@ export function indexStudentContributions(
 
     const owner = ownerOf(pr.repository_url);
     if (!owner) continue;
-    perOwner.set(owner, (perOwner.get(owner) ?? 0) + 1);
+    const key = owner.toLowerCase();
+    const seen = perOwner.get(key);
+    if (seen) seen.count += 1;
+    else perOwner.set(key, { login: owner, count: 1 });
   }
 
-  for (const [owner, count] of perOwner) {
-    const key = owner.toLowerCase();
+  for (const [key, { login: owner, count }] of perOwner) {
     const entry = (index[key] ??= { login: owner, contributors: {}, mergedPRs: 0 });
     // Recompute rather than add: a student can be folded in again on a later
     // refresh, and their count should replace the old one, not stack onto it.
@@ -97,7 +103,7 @@ export function indexStudentContributions(
   // A student may have had their last PR to an org removed (flagged, or the
   // repo failed validation), in which case they must drop out of that org.
   for (const [key, entry] of Object.entries(index)) {
-    if (perOwner.has(entry.login) || entry.contributors[login] === undefined) continue;
+    if (perOwner.has(key) || entry.contributors[login] === undefined) continue;
     entry.mergedPRs -= entry.contributors[login];
     delete entry.contributors[login];
     if (Object.keys(entry.contributors).length === 0) delete index[key];
