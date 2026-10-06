@@ -1,7 +1,7 @@
 import { kvGet, kvSet } from './kv';
 import { getGitHubHeaders } from './github';
 import { readSummaryCache } from './summary-cache';
-import { readProfileCache } from './profile-cache';
+import { readOrgIndex } from './org-index';
 
 export interface OrgCacheEntry {
   login: string;
@@ -242,34 +242,17 @@ export async function getSearchSuggestions(
     }
   }
 
-  // (b) Discover and enrich contribution counts from student PR data ONLY for verified organizations.
-  // Unverified repository owners are NEVER assumed to be organizations.
-  await Promise.all(
-    allSummaries.map(async (student) => {
-      try {
-        const cachedProfile = await readProfileCache(student.profile.login);
-        const prs = cachedProfile?.prs || [];
-        for (const pr of prs) {
-          if (!pr.repository_url) continue;
-          const repo = repoFromUrl(pr.repository_url);
-          const owner = repo.split('/')[0]?.trim();
-          if (!owner || owner.length < 2) continue;
-          const lowerOwner = owner.toLowerCase();
-
-          // Only accumulate stats if this owner is confirmed to be an organization
-          const agg = orgAggs.get(lowerOwner);
-          if (agg) {
-            agg.contributors.add(student.profile.login);
-            if (pr.pull_request?.merged_at) {
-              agg.mergedPRs++;
-            }
-          }
-        }
-      } catch {
-        // Ignore individual profile read errors
-      }
-    }),
-  );
+  // (b) Contribution counts come from the index the refresh builds, so this
+  // is one KV read rather than one per student. Opening every profile here
+  // cost ~1,890 reads per keystroke (~11,000 commands to type one org name),
+  // which is what exhausted the database's bandwidth allowance.
+  const orgIndex = await readOrgIndex();
+  for (const [key, agg] of orgAggs) {
+    const entry = orgIndex[key];
+    if (!entry) continue;
+    for (const login of Object.keys(entry.contributors)) agg.contributors.add(login);
+    agg.mergedPRs = entry.mergedPRs;
+  }
 
   // 2. Score and rank Organization suggestions
   const orgSuggestions: OrgSuggestion[] = [];

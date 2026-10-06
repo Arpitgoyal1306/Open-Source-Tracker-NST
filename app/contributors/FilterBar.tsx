@@ -251,7 +251,25 @@ export function FilterBar({
     }, 300);
   }
 
+  /* Typing schedules a 300ms navigation that clears `org` and sets `search`.
+     Picking something from the dropdown has to cancel that timer, or it fires
+     straight afterwards and undoes the selection -- replacing ?org= with
+     ?search=, or bouncing the viewer off the profile they just opened. The
+     suggestions fetch is cancelled too so a late response cannot reopen the
+     dropdown over a closed one. */
+  function cancelPendingNavigation() {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (suggestionsDebounceRef.current) {
+      clearTimeout(suggestionsDebounceRef.current);
+      suggestionsDebounceRef.current = null;
+    }
+  }
+
   function handleSelectOrg(org: OrgSuggestionItem) {
+    cancelPendingNavigation();
     setIsSuggestionsOpen(false);
     setSearch("");
     const qs = buildParams({ org: org.login, search: "" });
@@ -262,8 +280,15 @@ export function FilterBar({
   }
 
   function handleSelectContributor(contrib: ContributorSuggestionItem) {
+    cancelPendingNavigation();
     setIsSuggestionsOpen(false);
-    router.push(`/contributors/${contrib.login}`);
+    // Carry the active org through, so a profile opened from org mode stays
+    // scoped to that org -- same as clicking a row on the leaderboard.
+    const activeOrg = searchParams.get("org");
+    router.push(
+      `/contributors/${contrib.login}` +
+        (activeOrg ? `?org=${encodeURIComponent(activeOrg)}` : ""),
+    );
   }
 
   // Calculate flat items list for keyboard navigation

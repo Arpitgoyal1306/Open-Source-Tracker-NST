@@ -17,6 +17,7 @@ import {
   REPO_SCHEMA_VERSION,
 } from "@/lib/repo-score";
 import { resolveOrganization, OrgCacheEntry } from "@/lib/org-cache";
+import { readOrgIndex, contributorsForOrg } from "@/lib/org-index";
 import { FilterBar } from "./FilterBar";
 import { ContributorGrid } from "./ContributorGrid";
 import Link from "next/link";
@@ -97,12 +98,15 @@ function PodiumCard({
   period,
   from,
   to,
+  org,
 }: {
   summary: StudentSummary;
   rank: 1 | 2 | 3;
   period: string;
   from?: string;
   to?: string;
+  /** Carried into the profile link so an org view survives the click. */
+  org?: string;
 }) {
   const isFirst = rank === 1;
   const isSecond = rank === 2;
@@ -137,7 +141,7 @@ function PodiumCard({
 
   return (
     <Link
-      href={`/contributors/${summary.profile.login}?period=${period}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`}
+      href={`/contributors/${summary.profile.login}?period=${period}${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}${org ? `&org=${encodeURIComponent(org)}` : ""}`}
       className={`group flex flex-col items-center text-center rounded-2xl p-5 md:p-6 transition-[translate,box-shadow,border-color] duration-300 ease-out motion-reduce:transition-none hover:shadow-card-hover ${cardStyle}`}
     >
       <div className="mb-4">{rankBadge}</div>
@@ -359,9 +363,15 @@ export default async function ContributorsPage({
     const targetOrgLogin = matchedOrg.login.toLowerCase();
     const orgSummaries: StudentSummary[] = [];
 
-    // Check student profile caches to discover all contributions to this org's public repos
+    // Only students the index says have merged PRs to this org need their
+    // profile opened. For apache that is ~46 reads instead of ~1,890, and the
+    // filtering below (dates, flags, repo validity, year, campus) is unchanged.
+    const orgContributors = contributorsForOrg(await readOrgIndex(), targetOrgLogin);
+
     await Promise.all(
-      allSummaries.map(async (studentSummary) => {
+      allSummaries
+        .filter((s) => orgContributors.has(s.profile.login.toLowerCase()))
+        .map(async (studentSummary) => {
         try {
           const cached = await readProfileCache(studentSummary.profile.login);
           if (!cached || !cached.prs || cached.prs.length === 0) return;
@@ -590,6 +600,7 @@ export default async function ContributorsPage({
                     period={period}
                     from={from}
                     to={to}
+                    org={matchedOrg?.login}
                   />
                 </div>
               ) : (
@@ -604,6 +615,7 @@ export default async function ContributorsPage({
                   period={period}
                   from={from}
                   to={to}
+                    org={matchedOrg?.login}
                 />
               </div>
 
@@ -616,6 +628,7 @@ export default async function ContributorsPage({
                     period={period}
                     from={from}
                     to={to}
+                    org={matchedOrg?.login}
                   />
                 </div>
               ) : (

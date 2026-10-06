@@ -19,6 +19,8 @@ interface GridProps {
   realContributors: RankedSummary[];
   otherStudents: StudentSummary[];
   period: string;
+  /** Organisation currently filtered on, carried into profile links so the
+   *  context survives the click. */
   /** Human-readable form of the selected period, e.g. "last 24 hours". */
   periodLabel: string;
   from?: string;
@@ -81,17 +83,20 @@ function ContributorRow({
   period,
   from,
   to,
+  org,
 }: {
   summary: StudentSummary;
   rank: number;
   period: string;
   from?: string;
   to?: string;
+  /** Carried into the profile link so the org view survives the click. */
+  org?: string;
 }) {
   const highlight = rank === 1 ? 'bg-gold-0/40' : '';
   return (
     <Link
-      href={`/contributors/${summary.profile.login}?period=${period}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`}
+      href={`/contributors/${summary.profile.login}?period=${period}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}${org ? `&org=${encodeURIComponent(org)}` : ''}`}
       className={`${ROW_GRID} px-3 md:px-5 py-3 border-t border-panel hover:bg-panel/60 transition-colors group ${highlight}`}
     >
       <span><RankCell rank={rank} /></span>
@@ -204,6 +209,7 @@ export function ContributorGrid({
               period={period}
               from={from}
               to={to}
+              org={orgContext?.login}
             />
           ))
         ) : (
@@ -257,7 +263,7 @@ export function ContributorGrid({
                 {otherPage.map((summary) => (
                   <Link
                     key={summary.profile.login}
-                    href={`/contributors/${summary.profile.login}?period=${period}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}`}
+                    href={`/contributors/${summary.profile.login}?period=${period}${from ? `&from=${from}` : ''}${to ? `&to=${to}` : ''}${orgContext ? `&org=${encodeURIComponent(orgContext.login)}` : ''}`}
                     className="flex items-center gap-3 bg-ground border border-line rounded-xl px-4 py-3 card-hover group"
                   >
                     <Image

@@ -6,6 +6,8 @@ import {
   fuzzyMatchScore,
   getSearchSuggestions,
 } from './org-cache';
+import { indexStudentContributions, writeOrgIndex, type OrgIndex } from './org-index';
+import { readProfileCache } from './profile-cache';
 
 vi.mock('./kv', () => {
   let memoryKv: Record<string, unknown> = {};
@@ -149,6 +151,17 @@ describe('lib/org-cache', () => {
 
   describe('getSearchSuggestions - Account Type Filtering', () => {
     beforeEach(async () => {
+      /* Contribution counts come from org_index now, not from reading every
+         profile on each request. Build it here from the very same fixtures the
+         profile-cache mock serves, so these tests still exercise the real
+         counting logic rather than asserting against hardcoded numbers. */
+      const index: OrgIndex = {};
+      for (const login of ['sanjana2505006', 'rahul99']) {
+        const profile = await readProfileCache(login);
+        if (profile) indexStudentContributions(index, login, profile);
+      }
+      await writeOrgIndex(index);
+
       await saveOrgCache({
         apache: {
           login: 'apache',
