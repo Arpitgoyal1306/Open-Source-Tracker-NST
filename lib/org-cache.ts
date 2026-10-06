@@ -191,11 +191,6 @@ function levenshteinDistance(a: string, b: string): number {
   return dp[m][n];
 }
 
-function repoFromUrl(url: string): string {
-  const m = url.match(/repos\/([^/]+\/[^/]+)/);
-  return m ? m[1] : url;
-}
-
 /**
  * Searches local cached organizations (from org_cache_map and contributor PR repository owners)
  * and student contributors for autocomplete suggestions.

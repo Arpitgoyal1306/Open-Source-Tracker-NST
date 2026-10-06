@@ -115,27 +115,27 @@ async function performIncrementalRefresh() {
   };
 }
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const result = await performIncrementalRefresh();
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Incremental Refresh] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
+      { error: error instanceof Error ? error.message : 'Internal Server Error' },
       { status: 500 }
     );
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const result = await performIncrementalRefresh();
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Incremental Refresh] Error:', error);
     return NextResponse.json(
-      { error: error.message || 'Internal Server Error' },
+      { error: error instanceof Error ? error.message : 'Internal Server Error' },
       { status: 500 }
     );
   }

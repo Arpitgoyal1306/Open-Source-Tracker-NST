@@ -122,6 +122,11 @@ export default async function ContributorPage({
 
     // 2. Cache stale (>2hrs) — logged-in users get an immediate live re-fetch;
     //    anonymous users are queued for the background worker.
+    // This is an async Server Component: it runs once per request on the
+    // server and never re-renders, and cache age is precisely a function of
+    // "now". react-hooks/purity targets client components, where an impure
+    // call would drift between renders.
+    // eslint-disable-next-line react-hooks/purity
     const ageMs = Date.now() - new Date(cached.cachedAt).getTime();
     if (ageMs > 2 * 60 * 60 * 1000) {
       if (userLoggedIn) {
@@ -285,6 +290,7 @@ export default async function ContributorPage({
   // total additionally decays repeat PRs into the same repo and caps any
   // single repo at 40% — so these badges are each PR's *first-PR* value, not
   // shares of the total.
+  // eslint-disable-next-line react-hooks/purity -- async Server Component, see above.
   const nowMs = Date.now();
   const viewedLogin = username.toLowerCase();
   const repoWeights: Record<string, number> = {};

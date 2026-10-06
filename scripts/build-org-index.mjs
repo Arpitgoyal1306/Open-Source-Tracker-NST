@@ -13,7 +13,7 @@
  *   node scripts/build-org-index.mjs            # write it
  *   node scripts/build-org-index.mjs --dry-run  # just report what it would write
  */
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const DRY = process.argv.includes('--dry-run');
